@@ -4,7 +4,7 @@ import com.playdata.userservice.common.dto.CommonErrorDTO;
 import jakarta.persistence.EntityNotFoundException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.authorization.AuthorizationDeniedException;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
@@ -40,8 +40,8 @@ public class CommonExceptionHandler {
     }
 
 
-    @ExceptionHandler(AuthorizationDeniedException.class)
-    public ResponseEntity<?> authDeniedHandler(AuthorizationDeniedException e) {
+    @ExceptionHandler(AccessDeniedException.class)
+    public ResponseEntity<?> authDeniedHandler(AccessDeniedException e) {
         e.printStackTrace();
 
         CommonErrorDTO errorDTO = new CommonErrorDTO(HttpStatus.FORBIDDEN, e.getMessage());
