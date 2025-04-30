@@ -11,6 +11,7 @@ import com.playdata.userservice.user.service.UserService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.core.env.Environment;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.http.HttpStatus;
@@ -51,6 +52,11 @@ public class UserController {
     private final JwtTokenProvider jwtTokenProvider;
 
     private final RedisTemplate<String, Object> redisTemplate;
+
+    // 기존에는 yml파일의 값을 불러오기 위해서는 @Value 어노테이션을 사용했지만,
+    // Environment 객체를 통해서 yml파일에 있는 프로퍼티에 직접 접근이 가능함.
+    // yml파일의 많은 값들에 접근해야 할 때 유용하게 사용이 가능함.
+    private final Environment env;
 
     @PostMapping("/create")
     public ResponseEntity<?> userCreate(@Valid @RequestBody UserSaveReqDTO dto) {
@@ -200,6 +206,17 @@ public class UserController {
                 new CommonResDTO(HttpStatus.OK, "이메일로 회원 조회 완료", dto);
 
         return ResponseEntity.ok().body(resDTO);
+    }
+
+    @GetMapping("/health-check")
+    public String healthCheck(){
+        String msg = "It's working in user-service \n";
+        msg += "token.expiration_time: " + env.getProperty("token.expiration_time");
+        msg += "token.secret: " + env.getProperty("token.secret");
+        msg += "aws.accessKey: " + env.getProperty("aws.accessKey");
+        msg += "aws.secretKey: " + env.getProperty("aws.secretKey");
+
+        return msg;
     }
 
 }

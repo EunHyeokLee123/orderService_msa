@@ -33,7 +33,7 @@ public class AuthorizationHeaderFilter extends AbstractGatewayFilterFactory {
     // 검사를 진행하지 않을 url을 모아놓은 리스트
     private final List<String> allowUrl = Arrays.asList(
             "/user/create", "/user/doLogin", "/user/refresh","/product/list",
-            "/user/findByEmail");
+            "/user/findByEmail", "/user/health-check");
 
     @Override
     public GatewayFilter apply(Object config) {
@@ -51,7 +51,7 @@ public class AuthorizationHeaderFilter extends AbstractGatewayFilterFactory {
 
             log.info("isAllowed = " + isAllowed);
 
-            if(isAllowed){
+            if(isAllowed || path.startsWith("/actuator")) {
                 // 허용 url이 맞다면 그냥 통과
                 return chain.filter(exchange);
             }

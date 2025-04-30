@@ -38,7 +38,8 @@ public class SecurityConfig {
 
         http.authorizeHttpRequests(auth -> {
            auth.requestMatchers("/user/create", "/user/doLogin"
-                   ,"/user/refresh", "/user/findByEmail").permitAll()
+                   ,"/user/refresh", "/user/findByEmail", "/user/health-check",
+                   "/actuator/**").permitAll()
            .anyRequest().authenticated();
         });
 
