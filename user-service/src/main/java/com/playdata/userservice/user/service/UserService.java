@@ -9,6 +9,7 @@ import com.playdata.userservice.user.entity.User;
 import com.playdata.userservice.user.repository.UserRepository;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -22,6 +23,7 @@ import java.util.stream.Collectors;
 // Service로 Bean 등록(Component와 동일하지만, 의미를 명시)
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class UserService {
 
     // service는 repository에 의존하고 있음 -> repository의 기능을 써야 함.
@@ -104,5 +106,15 @@ public class UserService {
     return userRepository.findById(Long.parseLong(id)).orElseThrow(
             () -> new EntityNotFoundException("User nt Found!")
     );
+    }
+
+    public UserResDTO findByEmail(String email) {
+
+        User user = userRepository.findByEmail(email).orElseThrow(() ->
+                new EntityNotFoundException("User not Found!"));
+
+        log.info(user.toString());
+
+        return user.fromEntity();
     }
 }

@@ -11,10 +11,13 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.server.reactive.ServerHttpRequest;
 import org.springframework.http.server.reactive.ServerHttpResponse;
 import org.springframework.stereotype.Component;
+import org.springframework.util.AntPathMatcher;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
 
 import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
+import java.util.List;
 
 @Component
 @Slf4j
@@ -27,15 +30,38 @@ public class AuthorizationHeaderFilter extends AbstractGatewayFilterFactory {
     @Value("${jwt.expiration}")
     private int expiration;
 
+    // 검사를 진행하지 않을 url을 모아놓은 리스트
+    private final List<String> allowUrl = Arrays.asList(
+            "/user/create", "/user/doLogin", "/user/refresh","/product/list",
+            "/user/findByEmail");
+
     @Override
     public GatewayFilter apply(Object config) {
         return (exchange, chain)->{
+            String path = exchange.getRequest().getURI().getPath();
+
+            log.info("path: {}", path);
+
+            AntPathMatcher antPathMatcher = new AntPathMatcher();
+            // 허용 url 리스트를  순회하면서 지금 들어온 요청 url과 하나라도 일치하면
+            // true를 리턴하는 메소드
+            boolean isAllowed
+                    = allowUrl.stream().anyMatch(url ->
+                    antPathMatcher.match(url, path));
+
+            log.info("isAllowed = " + isAllowed);
+
+            if(isAllowed){
+                // 허용 url이 맞다면 그냥 통과
+                return chain.filter(exchange);
+            }
+
             // 토큰이 필요한 요청은 Header에 Authorization 이라는 이름으로 Bearer ~~~가 전달됨
             String authorizationHeader
                     = exchange.getRequest().getHeaders().getFirst("Authorization");
 
-            if(authorizationHeader != null
-                    && authorizationHeader.startsWith("Bearer ")) {
+            if(authorizationHeader == null
+                    || !authorizationHeader.startsWith("Bearer ")) {
                 // 토큰이 존재하지 않거나, Bearer로 시작하지 않는다면
                 return onError(exchange, "Authorization header is missing or invalid",
                         HttpStatus.UNAUTHORIZED);
@@ -55,7 +81,7 @@ public class AuthorizationHeaderFilter extends AbstractGatewayFilterFactory {
             ServerHttpRequest request = exchange.getRequest()
                     .mutate()
                     .header("X-User-Email", claims.getSubject())
-                    .header("X-User_Role", claims.get("role", String.class))
+                    .header("X-User-Role", claims.get("role", String.class))
                     .build();
 
             // 새롭게 만든 (토큰 정보를 헤더에 담은) request 객체를 exchange에 갈아끼워서 보내자
