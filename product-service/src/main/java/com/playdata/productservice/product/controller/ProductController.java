@@ -98,9 +98,9 @@ public class ProductController {
     }
 
     @PostMapping("/updateQuantity")
-    public ResponseEntity<?> updateStockQuantity(@RequestBody Map<String, String> map) {
-        Long prodId = Long.parseLong(map.get("productId"));
-        int stockQuantity = Integer.parseInt(map.get("stockQuantity"));
+    public ResponseEntity<?> updateStockQuantity(@RequestBody ProductResDTO productResDTO) {
+        Long prodId = productResDTO.getId();
+        int stockQuantity = productResDTO.getStockQuantity();
 
         log.info("/product/updateQuantity: PATCH, prodId: {}, stockQuantity: {}"
                 , prodId, stockQuantity);

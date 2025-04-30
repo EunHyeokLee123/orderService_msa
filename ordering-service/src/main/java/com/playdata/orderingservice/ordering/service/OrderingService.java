@@ -1,5 +1,7 @@
 package com.playdata.orderingservice.ordering.service;
 
+import com.playdata.orderingservice.client.ProductServiceClient;
+import com.playdata.orderingservice.client.UserServiceClient;
 import com.playdata.orderingservice.common.auth.TokenUserInfo;
 import com.playdata.orderingservice.common.dto.CommonResDTO;
 import com.playdata.orderingservice.ordering.dto.OrderingSaveReqDTO;
@@ -33,9 +35,9 @@ public class OrderingService {
     private final OrderingRepository orderingRepository;
     private final RestTemplate restTemplate;
 
-    // 유레카에 등록된 서비스명으로 요청을 보낼 수 있게 url 틀을 만들어 놓자.
-    private final String USER_API = "http://user-service/";
-    private final String PRODUCT_API = "http://product-service/";
+    // Feign client 구현체를 주입받기
+    private final UserServiceClient userServiceClient;
+    private final ProductServiceClient productServiceClient;
 
     public Ordering createOrder(List<OrderingSaveReqDTO> dtoList,
                                 TokenUserInfo userInfo) {
@@ -43,22 +45,18 @@ public class OrderingService {
         // Ordering 객체를 생성하기 위해 회원 정보를 얻어오자.
         // 우리가 가진 유일한 정보는 토큰 안에 들어있던 이메일 뿐입니다...
         // 이메일을 가지고 요청을 보내자 -> user-service
-        ResponseEntity<CommonResDTO> responseEntity = restTemplate.exchange(
-                USER_API + "user/findByEmail?email=" + userInfo.getEmail(), // 요청 url
-                HttpMethod.GET, // 요청 방식
-                null, // 요청과 함께 전달할 데이터
-                CommonResDTO.class // 응답받을 데이터의 형태
-        );
-        CommonResDTO commonDto = responseEntity.getBody();
-        Map<String, Object> userData
-                = (Map<String, Object>) commonDto.getResult();
 
-        log.info("user-service로부터 전달받은 결과: {}", userData);
-        int userId = (Integer) userData.get("id");
+        CommonResDTO<UserResDTO> byEmail 
+                = userServiceClient.findByEmail(userInfo.getEmail());
+
+        
+        
+        UserResDTO userDTO = byEmail.getResult();
+        log.info("user-service로부터 전달받은 결과: {}", userDTO);
 
         // Ordering(주문) 객체 생성
         Ordering ordering = Ordering.builder()
-                .userId((long) userId)
+                .userId(userDTO.getId())
                 .orderDetails(new ArrayList<>()) // 아직 주문 상세 들어가기 전.
                 .build();
 
@@ -67,17 +65,14 @@ public class OrderingService {
 
             // dto 안에 있는 상품 id를 이용해서 상품 정보 얻어오자.
             // product 객체를 조회하자 -> product-service에게 요청해야 함!
-            ResponseEntity<CommonResDTO> prodResponse = restTemplate.exchange(
-                    PRODUCT_API + "product/" + dto.getProductId(),
-                    HttpMethod.GET,
-                    null,
-                    CommonResDTO.class
-            );
-            CommonResDTO commonResDto = prodResponse.getBody();
-            Map<String, Object> productResDto
-                    = (Map<String, Object>) commonResDto.getResult();
-            log.info("product-service로부터 받아온 결과: {}", productResDto);
-            int stockQuantity = (Integer) productResDto.get("stockQuantity");
+
+            CommonResDTO<ProductResDTO> byId
+                    = productServiceClient.findById(dto.getProductId());
+
+            ProductResDTO productResDTO = byId.getResult();
+
+            log.info("product-service로부터 받아온 결과: {}", productResDTO);
+            int stockQuantity = productResDTO.getStockQuantity();
 
             // 재고 넉넉하게 있는지 확인
             int quantity = dto.getProductQuantity();
@@ -92,21 +87,10 @@ public class OrderingService {
             // LinkedMultiValueMap은 키 하나에 여러개의 값을 리스트 형태로 저장 가능합니다.
             // 데이터 삽입 순서를 보장할 수 있습니다.
             // 웹 관련 작업에 적합합니다.
-            Map<String, String> map = new HashMap<>();
-            map.put("productId", String.valueOf(dto.getProductId()));
-            map.put("stockQuantity", String.valueOf(stockQuantity - quantity));
 
-            HttpHeaders headers = new HttpHeaders();
-            headers.add("Content-Type", "application/json");
-            // RestTemplate으로 요청 보낼 때 요청 관련 필요한 데이터 및 헤더 정보를 세팅하는 객체.
-            HttpEntity<Object> httpEntity = new HttpEntity<>(map, headers);
+            productResDTO.setStockQuantity(stockQuantity - quantity);
 
-            restTemplate.exchange(
-                    PRODUCT_API + "product/updateQuantity",
-                    HttpMethod.POST,
-                    httpEntity,
-                    CommonResDTO.class
-            );
+            productServiceClient.updateQuantity(productResDTO);
 
             // 주문 상세 내역 엔터티 생성
             OrderDetail orderDetail = OrderDetail.builder()
