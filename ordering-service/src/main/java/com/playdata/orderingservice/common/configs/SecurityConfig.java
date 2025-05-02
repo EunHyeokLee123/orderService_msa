@@ -44,8 +44,7 @@ public class SecurityConfig {
         // 요청 권한 설정 (URL의 종류에 따라 권한 검사 여부를 설정)
         http.authorizeHttpRequests(auth -> {
             // 권한 검사하지 말라는 설정
-           auth.requestMatchers("/user/create", "/user/doLogin", "/product/list"
-                   ,"/user/refresh").permitAll()
+           auth.requestMatchers( "/actuator.**").permitAll()
                 //   .requestMatchers("/user/list").hasRole("ROLE_ADMIN")
             // 나머지 요청을 권한 검사를 진행하라는 설정
            .anyRequest().authenticated();

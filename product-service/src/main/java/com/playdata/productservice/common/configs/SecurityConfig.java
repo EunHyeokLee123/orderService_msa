@@ -46,7 +46,8 @@ public class SecurityConfig {
             // 권한 검사하지 말라는 설정
            auth.requestMatchers("/product/list"
                            , "/product/updateQuantity",
-                           "/product/{prodId}").permitAll()
+                           "/product/{prodId}",
+                           "/actuator.**").permitAll()
                 //   .requestMatchers("/user/list").hasRole("ROLE_ADMIN")
             // 나머지 요청을 권한 검사를 진행하라는 설정
            .anyRequest().authenticated();

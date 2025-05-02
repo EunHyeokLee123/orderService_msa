@@ -1,4 +1,3 @@
-
 *.yml
 .gradle
 build/
