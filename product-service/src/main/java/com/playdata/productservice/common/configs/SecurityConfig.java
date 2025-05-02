@@ -47,7 +47,8 @@ public class SecurityConfig {
            auth.requestMatchers("/product/list"
                            , "/product/updateQuantity",
                            "/product/{prodId}",
-                           "/actuator.**").permitAll()
+                           "/actuator.**",
+                   "/product/products").permitAll()
                 //   .requestMatchers("/user/list").hasRole("ROLE_ADMIN")
             // 나머지 요청을 권한 검사를 진행하라는 설정
            .anyRequest().authenticated();

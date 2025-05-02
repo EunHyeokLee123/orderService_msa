@@ -110,4 +110,15 @@ public class ProductController {
         return ResponseEntity.ok().body(resDto);
     }
 
+    // 한 사용자의 모든 주문 내역 안에 있는 상품 정보를 리턴하는 메소드
+    @PostMapping("/products")
+    public ResponseEntity<?>  getProducts(@RequestBody List<Long> productIds) {
+        List<ProductResDTO> productsName = productService.getProductsName(productIds);
+
+        CommonResDTO resDTO = new CommonResDTO(HttpStatus.OK, "해당하는 모든 제품 찾음",
+                productsName);
+
+        return ResponseEntity.ok().body(resDTO);
+    }
+
 }

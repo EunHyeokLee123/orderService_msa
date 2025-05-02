@@ -6,6 +6,8 @@ import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 @FeignClient(name = "product-service")
 public interface ProductServiceClient {
 
@@ -14,4 +16,8 @@ public interface ProductServiceClient {
 
     @PostMapping("/product/updateQuantity")
     ResponseEntity<?> updateQuantity(@RequestBody ProductResDTO productResDTO); // 상품 재고 최신화 메소드
+
+    @PostMapping("/product/products")
+    CommonResDTO<List<ProductResDTO>> getProducts(@RequestBody List<Long> productIds);
+
 }

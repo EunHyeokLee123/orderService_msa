@@ -4,6 +4,7 @@ import com.playdata.orderingservice.client.ProductServiceClient;
 import com.playdata.orderingservice.client.UserServiceClient;
 import com.playdata.orderingservice.common.auth.TokenUserInfo;
 import com.playdata.orderingservice.common.dto.CommonResDTO;
+import com.playdata.orderingservice.ordering.dto.OrderingListResDTO;
 import com.playdata.orderingservice.ordering.dto.OrderingSaveReqDTO;
 import com.playdata.orderingservice.ordering.dto.ProductResDTO;
 import com.playdata.orderingservice.ordering.dto.UserResDTO;
@@ -12,19 +13,14 @@ import com.playdata.orderingservice.ordering.entity.Ordering;
 import com.playdata.orderingservice.ordering.repository.OrderingRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpMethod;
-import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.web.client.RestTemplate;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
 @Transactional
@@ -105,5 +101,80 @@ public class OrderingService {
         }
 
         return orderingRepository.save(ordering);
+    }
+
+    public List<OrderingListResDTO> myOrder(final TokenUserInfo userInfo) {
+
+        String email = userInfo.getEmail();
+        CommonResDTO<UserResDTO> foundUser = userServiceClient.findByEmail(email);
+        Long userId = foundUser.getResult().getId();
+
+        // 해당 사용자의 주문 내역 전부 가져오기
+        List<Ordering> orderingList = orderingRepository.findByUserId(userId);
+        
+        // 주문 내역에서 모든 상품 ID를 추출한 후
+        // product-service에게 상품 정보를 요청
+                        /*
+         OrderingListResDto -> OrderDetailDto(static 내부 클래스)
+         {
+            id: 주문번호,
+            userEmail: 주문한 사람 이메일,
+            orderStatus: 주문 상태
+            orderDetails: [
+                {
+                    id: 주문상세번호,
+                    productName: 상품명,
+                    count: 수량
+                },
+                {
+                    id: 주문상세번호,
+                    productName: 상품명,
+                    count: 수량
+                },
+                {
+                    id: 주문상세번호,
+                    productName: 상품명,
+                    count: 수량
+                }
+                ...
+            ]
+         }
+         */
+        // 스트림 준비!
+        // flatMap: 하나의 주문 내역에서 상세 주문 내역 리스트를 꺼낸 후 하나의 스트림으로 평탄화
+                /* flatMap의 동작 원리
+                [
+                    Ordering 1 -> [OrderDetail1, OrderDetail2]
+                    Ordering 2 -> [OrderDetail3]
+                    Ordering 3 -> [OrderDetai4, OrderDetail5, OrderDetail6]
+                ]
+
+                [OrderDetail1, OrderDetail2, OrderDetail3, OrderDetail4, OrderDetail5, OrderDetail6]
+        */
+        List<Long> productIds = orderingList.stream()
+                .flatMap(ordering -> ordering.getOrderDetails().stream())
+                .map(orderDetail -> orderDetail.getProductId())
+                .distinct()
+                .collect(Collectors.toList());
+
+        // product-service에게 상품 정보를 달라고 요청하자
+        CommonResDTO<List<ProductResDTO>> products
+                = productServiceClient.getProducts(productIds);
+
+        // product-service에게 받아온 리스트를 필요로 하는 맵으로 맵핑
+        List<ProductResDTO> dtoList = products.getResult();
+
+        Map<Long, String> map = dtoList.stream()
+                .collect(Collectors.toMap(
+                        dto -> dto.getId(), // key
+                        dto -> dto.getName()  // value
+                ));
+
+        // Ordering 객체를 DTO로 변환하자. 주문 상세에 대한 변환도 따로 처리
+        return orderingList.stream()
+                .map(order -> order.fromEntity(email, map))
+                .collect(Collectors.toList());
+
+
     }
 }
