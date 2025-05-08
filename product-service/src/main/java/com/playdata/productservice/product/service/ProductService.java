@@ -18,6 +18,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -122,5 +123,16 @@ public class ProductService {
         List<Product> products = productRepository.findByIdIn(productIds);
 
         return products.stream().map(Product::fromEntity).collect(Collectors.toList());
+    }
+
+    public void cancelProduct(Map<Long, Integer> map) {
+        for (Long key : map.keySet()) {
+            Product foundProd = productRepository.findById(key).orElseThrow(
+                    () -> new EntityNotFoundException("Product with id: " + key + " not found")
+            );
+            int quantity = foundProd.getStockQuantity();
+            foundProd.setStockQuantity(quantity + map.get(key));
+            productRepository.save(foundProd);
+        }
     }
 }

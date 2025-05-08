@@ -121,4 +121,14 @@ public class ProductController {
         return ResponseEntity.ok().body(resDTO);
     }
 
+    // 주문 취소 시에 각 상품의 재고 수량을 원복하는 요청
+    @PutMapping("/cancel")
+    public ResponseEntity<?> cancelProduct(@RequestBody Map<Long, Integer> map) {
+        log.info("/product/cancel: PUT, map: {}", map);
+        productService.cancelProduct(map);
+        CommonResDTO resDto
+                = new CommonResDTO(HttpStatus.OK, "update completed", map);
+        return ResponseEntity.ok().body(resDto);
+    }
+
 }

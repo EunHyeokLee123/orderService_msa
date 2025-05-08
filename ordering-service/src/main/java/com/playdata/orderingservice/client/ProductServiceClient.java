@@ -5,6 +5,7 @@ import com.playdata.orderingservice.ordering.dto.ProductResDTO;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import java.util.Map;
 
 import java.util.List;
 
@@ -19,5 +20,8 @@ public interface ProductServiceClient {
 
     @PostMapping("/product/products")
     CommonResDTO<List<ProductResDTO>> getProducts(@RequestBody List<Long> productIds);
+
+    @PutMapping("/product/cancel")
+    ResponseEntity<?> cancelProduct(@RequestBody Map<Long, Integer> map);
 
 }
