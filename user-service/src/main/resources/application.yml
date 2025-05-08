@@ -1,0 +1,16 @@
+server:
+  port: 0
+
+spring:
+  application:
+    name: user-service
+
+  # /actuator/refresh를 호출하면 yml의 내용이 초기화되면서 새로 설정됩니다.
+  # 그 과정에서 갱신 대상에 포함되지 않는 애들이 있는데, 걔네들을 명시적으로 refresh 대상에 포함시키라는 설정
+
+# log level setting
+
+
+# 액츄에이터 등록 (beans: 서비스의 스프링 컨테이너에 등록된 빈 보여줌)
+# health: 서버 살아있는 지(서버의 상태),
+# refresh: 전역 config 설정을 받아오기위한 기능. 변경된 내용이 있는 빈을 최신의 코드로 적용시킴.

@@ -1,0 +1,10 @@
+
+# 서비스가 실행될 때 application.yml보다 우선순위가 높은 설정파일과 읽을 설정 파일 등록
+# 읽어오고자 하는 config 서버의 위치 등록
+
+spring:
+  cloud:
+    config:
+      uri: http://localhost:8888
+      # default를 입력하면 application.yml을 불러옴 -> 원래 application.yml에 덮어씌워짐 주의!!!
+      profile: default   # application.yml 읽어오겠다.
