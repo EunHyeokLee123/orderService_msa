@@ -4,7 +4,7 @@ import com.playdata.userservice.common.auth.JwtTokenProvider;
 import com.playdata.userservice.common.dto.CommonErrorDTO;
 import com.playdata.userservice.common.dto.CommonResDTO;
 import com.playdata.userservice.user.dto.UserLoginReqDTO;
-import com.playdata.userservice.user.dto.UserResDTO;
+import com.playdata.userservice.user.dto.UserResDto;
 import com.playdata.userservice.user.dto.UserSaveReqDTO;
 import com.playdata.userservice.user.entity.User;
 import com.playdata.userservice.user.service.UserService;
@@ -139,7 +139,7 @@ public class UserController {
 
         System.out.println("pageable = " + pageable);;
         // /list?number=1&size=10&sort=name,desc 요런 식으로.
-        List<UserResDTO> dtoList = userService.userList(pageable);
+        List<UserResDto> dtoList = userService.userList(pageable);
 
         CommonResDTO resDTO =
                 new CommonResDTO(HttpStatus.OK, "관리자용 회원 조회 성공", dtoList);
@@ -153,7 +153,7 @@ public class UserController {
     // 일반회원용 정보 조회
     @GetMapping("/myInfo")
     public ResponseEntity<?> getMyInfo(){
-        UserResDTO dto = userService.myInfo();
+        UserResDto dto = userService.myInfo();
         CommonResDTO resDTO =
                 new CommonResDTO(HttpStatus.OK, "myInfo 조회 성공", dto);
 
@@ -199,7 +199,7 @@ public class UserController {
     @GetMapping("/findByEmail")
     public ResponseEntity<?> getUserByEmail(@RequestParam String email){
         log.info("getUserByEmail이 호출됨. 이메일은: " + email);
-        UserResDTO dto = userService.findByEmail(email);
+        UserResDto dto = userService.findByEmail(email);
         log.info(dto.toString());
 
         CommonResDTO resDTO =

@@ -33,27 +33,19 @@ spring:
             postLogger: true
       routes:
         - id: first-service
-          # lb: load balancing + Eureka Application ??
           uri: lb://FIRST-SERVICE
           predicates:
-          # first-service? ?? ??? ???.
             - Path=/first-service/**
           filters:
             - CustomFilter
 
         - id: user-service
-          # lb: load balancing + Eureka Application ??
           uri: lb://USER-SERVICE
           predicates:
-            # first-service? ?? ??? ???.
             - Path=/user-service/**
           filters:
-            # ??? ???? ???? ? ???? ????? ?? ?? ?? ? ???? ??
-            # ?? ??
             - RemoveRequestHeader=Cookie
-            # ?? ??? ?? ??? ?? ??? ??? ?? -> ????? ?? ?? (??? ??)
             - RewritePath=/user-service/(?<segment>.*), /$\{segment}
-            # ex) /user-service/users/123   -> /users/123? ???? ?? ??.
             - AuthorizationHeaderFilter
 
         - id: product-service
@@ -72,6 +64,15 @@ spring:
           filters:
             - RemoveRequestHeader=Cookie
             - RewritePath=/ordering-service/(?<segment>.*), /$\{segment}
+            - AuthorizationHeaderFilter
+
+        - id: post-service
+          uri: lb://POST-SERVICE
+          predicates:
+            - Path=/post-service/**
+          filters:
+            - RemoveRequestHeader=Cookie
+            - RewritePath=/post-service/(?<segment>.*), /$\{segment}
             - AuthorizationHeaderFilter
 
         - id: second-service

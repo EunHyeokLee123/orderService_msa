@@ -1,7 +1,7 @@
 package com.playdata.userservice.user.entity;
 
 import com.playdata.userservice.common.entity.Address;
-import com.playdata.userservice.user.dto.UserResDTO;
+import com.playdata.userservice.user.dto.UserResDto;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -41,8 +41,8 @@ public class User {
 
     // DTO에 Entity 변환 메소드가 있는 것처럼
     // Entity도 응답용 DTO 변환 메소드를 세팅해서 언제든 변환이 자유롭도록 작성.
-    public UserResDTO fromEntity(){
-        return UserResDTO.builder()
+    public UserResDto fromEntity(){
+        return UserResDto.builder()
                 .id(this.id)
                 .name(this.name)
                 .email(this.email)

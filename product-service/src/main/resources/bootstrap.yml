@@ -7,7 +7,7 @@ spring:
     name: product-service # service 이름과 매칭되는 설정 파일을 불러오겠다
   cloud:
     config:
-      uri: http://localhost:8888
+      uri: http://config-service:8888
       # default를 입력하면 application.yml을 불러옴 -> 원래 application.yml에 덮어씌워짐 주의!!!
       profile: default   # application.yml 읽어오겠다.
 

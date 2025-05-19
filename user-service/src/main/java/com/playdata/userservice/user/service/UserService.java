@@ -3,7 +3,7 @@ package com.playdata.userservice.user.service;
 
 import com.playdata.userservice.common.auth.TokenUserInfo;
 import com.playdata.userservice.user.dto.UserLoginReqDTO;
-import com.playdata.userservice.user.dto.UserResDTO;
+import com.playdata.userservice.user.dto.UserResDto;
 import com.playdata.userservice.user.dto.UserSaveReqDTO;
 import com.playdata.userservice.user.entity.User;
 import com.playdata.userservice.user.repository.UserRepository;
@@ -66,7 +66,7 @@ public class UserService {
     }
 
     // myPage에서 회원정보를 불러오는 메소드
-    public UserResDTO myInfo() {
+    public UserResDto myInfo() {
         // Security 컨테이너에 있는 User 정보를 가져오자
         TokenUserInfo userInfo = 
                 // 필터에서 세팅한 시큐리티 인증 정보를 불러오는 메소드
@@ -81,14 +81,14 @@ public class UserService {
 
     }
 
-    public List<UserResDTO> userList(Pageable pageable) {
+    public List<UserResDto> userList(Pageable pageable) {
         // Pageable 객체를 직접 생성할 필요가 없음
         // Controller가 보내줌.
 
         Page<User> all = userRepository.findAll(pageable);
 
         // 실질적인 데이터
-        List<UserResDTO> content = all.getContent().stream()
+        List<UserResDto> content = all.getContent().stream()
                 .map(User::fromEntity)
                 .collect(Collectors.toList());
 
@@ -108,7 +108,7 @@ public class UserService {
     );
     }
 
-    public UserResDTO findByEmail(String email) {
+    public UserResDto findByEmail(String email) {
 
         User user = userRepository.findByEmail(email).orElseThrow(() ->
                 new EntityNotFoundException("User not Found!"));
