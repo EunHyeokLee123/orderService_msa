@@ -8,6 +8,8 @@ import org.springframework.cloud.netflix.eureka.server.EnableEurekaServer;
 @SpringBootApplication
 // 유레카 서버로 사용하겠다는 어노테이션
 @EnableEurekaServer
+
+// 변경을 해보자!
 public class DiscoveryServiceApplication {
 
     public static void main(String[] args) {

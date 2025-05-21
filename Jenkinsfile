@@ -1,9 +1,15 @@
+// 자주 사용되는 필요한 변수는 전역으로 선언하는 것도 가능
+// ECR credential helper 이름
+def ecrLoginHelper = "docker-credential-ecr-login"
+
 
 // 젠킨스 파일의 선언형 파이프라인 정의부 시작 (그루비 언어)
 pipeline {
     agent any // 젠킨스 서버가 여러개 일때, 어느 젠킨스 서버에서나 실행이 가능
     environment{
         SERVICE_DIRS="config-service,discovery-service,gateway-service,ordering-service,user-service,product-service"
+        ECR_URL="891612549514.dkr.ecr.ap-northeast-2.amazonaws.com/"
+        REGION="ap-northeast-2"
     }
     stages {
     // 각 작업 단위별로 stage로 나누어서 작성이 가능함. ()에 제목을 붙일 수 있음.
@@ -83,6 +89,40 @@ pipeline {
                     }
                 }
             }
+
+         stage('Build Docker Image & Push to AWS ECR') {
+            when {
+                expression { env.CHANGED_SERVICES != "" }
+            }
+            steps {
+                script {
+                    // Jenkins에 저장된 credentials를 사용하여 AWS 자격증명을 설정.
+                    withAws(region: "${REGION}", credentials:"aws-key")
+                    def changedServices = env.CHANGED_SERVICES.split(",")
+                    changedServices.each {service ->
+                        sh """
+                        # ECR에 이미지를 push하기 위해 인증 정보를 대신 검증 해주는 도구 다운로드.
+                        # /user/local/bin/ 경로에 다운로드한 해당 파일을 이동 및 실행할 수 있는 권한 부여
+
+                        curl -O https://amazon-ecr-credential-helper-releases.s3.us-east-2.amazonaws.com/0.4.0/linux-amd64/${ecrLoginHelper}
+                        chmod +x ${ecrLoginHelper}
+                        mv ${ecrLoginHelper} /usr/local/bin/
+
+
+                        # Docker에게 push 명령을 내리면 지정된 URL로 push할 수 있게 설정.
+                        # 자동으로 로그인 도구를 쓰게 설정
+
+                        echo '{"credHelpers": {"${ECR_URL}/${service}": "ecr-login"}}' > ~/.docker/config.json
+
+                        docker build -t ${service}:latest ${service}
+                        docker tag ${service}:latest ${ECR_URL}/${service}:latest
+                        docker push ${ECR_URL}/${service}:latest
+                        """
+
+                    }
+                }
+            }
+         }
         }
     }
 }
