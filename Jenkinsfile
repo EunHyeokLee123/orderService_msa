@@ -115,6 +115,8 @@ pipeline {
 
                            echo '{"credHelpers": {"${ECR_URL}/${service}": "ecr-login"}}' > ~/.docker/config.json
 
+                           echo "${ECR_URL}/${service}"
+
                            docker build -t ${service}:latest ${service}
                            docker tag ${service}:latest ${ECR_URL}/${service}:latest
                            docker push ${ECR_URL}/${service}:latest
