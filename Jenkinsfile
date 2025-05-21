@@ -33,25 +33,7 @@ pipeline {
                     }
                 }
 
-                /////
-
-        stages {
-                // 각 작업 단위를 스테이지로 나누어서 작성 가능.
-                stage('Pull Codes from Github') { // 스테이지 제목 (맘대로 써도 됨)
-                    steps {
-                        checkout scm // 젠킨스와 연결된 소스 컨트롤 매니저(git 등)에서 코드를 가져오는 명령어
-                    }
-                }
-
-                stage('Add Secret To config-service') {
-                    steps {
-                        withCredentials([file(credentialsId: 'config-secret', variable: 'configSecret')]) {
-                            script {
-                                sh 'cp $configSecret config-service/src/main/resources/application-dev.yml'
-                            }
-                        }
-                    }
-                }
+        /////
 
                 stage('Detect Changes') {
                     steps {
