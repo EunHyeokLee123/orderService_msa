@@ -15,23 +15,38 @@ pipeline {
         stage('Detect Changes') {
             steps {
                 script {
-                    // 변경된 파일을 감지해보자! git 명령어를 통해서!
-                    // returnStdout: true -> 결과를 출력하지 말고, 변수에 문자열로 넣어달라
-                    def changedFiles = sh(script:"git diff --name-only HEAD~1 HEAD", returnStdout: true)
-                                        .trim()
-                                        .split("\n") // 변경된 파일을 줄 단위로 분리
-                    // 변경된 파일 출력
-                    // [user-service/src/main/resources/application.yml,
-                    // user-service/src/main/java/com/playdata/userservice/controller/UserController.java,
-                    // ordering-service/src/main/resources/application.yml]
-                    echo "ChangedFiles: ${changedFiles}"
+                    // git rev-list --count HEAD
+                    // rev-list : 특정 브랜치나 커밋을 기준으로 모든 이전 커밋 목록을 나열 -> HEAD 커밋을 기준으로
+                    // --count : 목록을 출력하지 말고, 커밋 개수만 숫자로 반환
+                    def commitCount = sh(script:"git rev-list --count HEAD", returnStdout: true)
+                                      .trim()
+                                      .toInteger()
 
                     def changedServices = []
                     def serviceDirs = env.SERVICE_DIRS.split(",")
 
-                    serviceDirs.each{ service ->
-                        if (changedFiles.any {it.startsWith(service + "/")}) {
-                            changedServices.add(service)
+                    // 최초 커밋이라면, 모든 서비스를 빌드
+                    if (commitCount == 1) {
+                        echo "Initial commit Detected. All services will be built."
+                        changedServices = serviceDirs
+                    }
+                    else {
+                        // 변경된 파일을 감지해보자! git 명령어를 통해서!
+                        // returnStdout: true -> 결과를 출력하지 말고, 변수에 문자열로 넣어달라
+                        def changedFiles = sh(script:"git diff --name-only HEAD~1 HEAD", returnStdout: true)
+                                            .trim()
+                                            .split("\n") // 변경된 파일을 줄 단위로 분리
+                        // 변경된 파일 출력
+                        // [user-service/src/main/resources/application.yml,
+                        // user-service/src/main/java/com/playdata/userservice/controller/UserController.java,
+                        // ordering-service/src/main/resources/application.yml]
+                        echo "ChangedFiles: ${changedFiles}"
+
+
+                        serviceDirs.each{ service ->
+                            if (changedFiles.any {it.startsWith(service + "/")}) {
+                                changedServices.add(service)
+                            }
                         }
                     }
                     // 변경된 서비스 이름을 모아놓은 리스트를 다른 스테이지에서도
