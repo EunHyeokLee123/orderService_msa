@@ -89,6 +89,7 @@ pipeline {
                     }
                 }
             }
+        }
 
          stage('Build Docker Image & Push to AWS ECR') {
             when {
