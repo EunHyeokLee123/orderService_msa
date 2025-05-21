@@ -102,42 +102,52 @@ pipeline {
             ////
 
          stage('Build Docker Image & Push to AWS ECR') {
-            when {
-            expression { env.CHANGED_SERVICES != "" }
-            }
-            steps {
-                script {
+             steps {
+                 script {
+                     withAWS(region: "${REGION}", credentials: "aws-key") {
+                         def changedServices = env.CHANGED_SERVICES.split(",")
+                         changedServices.each { service ->
+                             // secret 파일이 필요한 경우만 credentials 호출
+                             if (service == "config-service") {
+                                 withCredentials([file(credentialsId: 'application-dev.yml', variable: 'DEV_YML')]) {
+                                     sh """
+                                     # secret 파일 복사
+                                     cp \$DEV_YML ${service}/src/main/resources/application-dev.yml
 
-                    // Jenkins에 저장된 credentials를 사용하여 AWS 자격증명을 설정.
-                    withAWS(region: "${REGION}", credentials:"aws-key"){
-                        def changedServices = env.CHANGED_SERVICES.split(",")
-                           changedServices.each {service ->
-                           sh """
-                           # ECR에 이미지를 push하기 위해 인증 정보를 대신 검증 해주는 도구 다운로드.
-                           # /user/local/bin/ 경로에 다운로드한 해당 파일을 이동 및 실행할 수 있는 권한 부여
+                                     # docker credential helper 설정
+                                     curl -O https://amazon-ecr-credential-helper-releases.s3.us-east-2.amazonaws.com/0.4.0/linux-amd64/${ecrLoginHelper}
+                                     chmod +x ${ecrLoginHelper}
+                                     mv ${ecrLoginHelper} /usr/local/bin/
 
-                           curl -O https://amazon-ecr-credential-helper-releases.s3.us-east-2.amazonaws.com/0.4.0/linux-amd64/${ecrLoginHelper}
-                           chmod +x ${ecrLoginHelper}
-                           mv ${ecrLoginHelper} /usr/local/bin/
+                                     mkdir -p ~/.docker
+                                     echo '{"credHelpers": {"${ECR_URL}": "ecr-login"}}' > ~/.docker/config.json
 
+                                     docker build -t ${service}:latest ${service}
+                                     docker tag ${service}:latest ${ECR_URL}/${service}:latest
+                                     docker push ${ECR_URL}/${service}:latest
 
-                           # Docker에게 push 명령을 내리면 지정된 URL로 push할 수 있게 설정.
-                           # 자동으로 로그인 도구를 쓰게 설정
+                                     # 보안상, 빌드 이후에는 dev.yml 삭제
+                                     rm -f ${service}/src/main/resources/dev.yml
+                                     """
+                                 }
+                             } else {
+                                 sh """
+                                 curl -O https://amazon-ecr-credential-helper-releases.s3.us-east-2.amazonaws.com/0.4.0/linux-amd64/${ecrLoginHelper}
+                                 chmod +x ${ecrLoginHelper}
+                                 mv ${ecrLoginHelper} /usr/local/bin/
 
-                           mkdir -p ~/.docker
-                           echo '{"credHelpers": {"${ECR_URL}": "ecr-login"}}' > ~/.docker/config.json
+                                 mkdir -p ~/.docker
+                                 echo '{"credHelpers": {"${ECR_URL}": "ecr-login"}}' > ~/.docker/config.json
 
-                           echo "${ECR_URL}/${service}"
-
-                           docker build -t ${service}:latest ${service}
-                           docker tag ${service}:latest ${ECR_URL}/${service}:latest
-                           docker push ${ECR_URL}/${service}:latest
-                           """
-                        }
-                    }
-                }
-            }
-
+                                 docker build -t ${service}:latest ${service}
+                                 docker tag ${service}:latest ${ECR_URL}/${service}:latest
+                                 docker push ${ECR_URL}/${service}:latest
+                                 """
+                             }
+                         }
+                     }
+                 }
+             }
          }
 
          /////
