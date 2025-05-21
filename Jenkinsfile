@@ -100,25 +100,25 @@ pipeline {
                     // Jenkins에 저장된 credentials를 사용하여 AWS 자격증명을 설정.
                     withAws(region: "${REGION}", credentials:"aws-key"){
                         def changedServices = env.CHANGED_SERVICES.split(",")
-                                            changedServices.each {service ->
-                                                sh """
-                                                # ECR에 이미지를 push하기 위해 인증 정보를 대신 검증 해주는 도구 다운로드.
-                                                # /user/local/bin/ 경로에 다운로드한 해당 파일을 이동 및 실행할 수 있는 권한 부여
+                           changedServices.each {service ->
+                           sh """
+                           # ECR에 이미지를 push하기 위해 인증 정보를 대신 검증 해주는 도구 다운로드.
+                           # /user/local/bin/ 경로에 다운로드한 해당 파일을 이동 및 실행할 수 있는 권한 부여
 
-                                                curl -O https://amazon-ecr-credential-helper-releases.s3.us-east-2.amazonaws.com/0.4.0/linux-amd64/${ecrLoginHelper}
-                                                chmod +x ${ecrLoginHelper}
-                                                mv ${ecrLoginHelper} /usr/local/bin/
+                           curl -O https://amazon-ecr-credential-helper-releases.s3.us-east-2.amazonaws.com/0.4.0/linux-amd64/${ecrLoginHelper}
+                           chmod +x ${ecrLoginHelper}
+                           mv ${ecrLoginHelper} /usr/local/bin/
 
 
-                                                # Docker에게 push 명령을 내리면 지정된 URL로 push할 수 있게 설정.
-                                                # 자동으로 로그인 도구를 쓰게 설정
+                           # Docker에게 push 명령을 내리면 지정된 URL로 push할 수 있게 설정.
+                           # 자동으로 로그인 도구를 쓰게 설정
 
-                                                echo '{"credHelpers": {"${ECR_URL}/${service}": "ecr-login"}}' > ~/.docker/config.json
+                           echo '{"credHelpers": {"${ECR_URL}/${service}": "ecr-login"}}' > ~/.docker/config.json
 
-                                                docker build -t ${service}:latest ${service}
-                                                docker tag ${service}:latest ${ECR_URL}/${service}:latest
-                                                docker push ${ECR_URL}/${service}:latest
-                                                """
+                           docker build -t ${service}:latest ${service}
+                           docker tag ${service}:latest ${ECR_URL}/${service}:latest
+                           docker push ${ECR_URL}/${service}:latest
+                           """
                         }
                     }
                 }
