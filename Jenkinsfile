@@ -105,7 +105,7 @@ pipeline {
              steps {
                  script {
                      withAWS(region: "${REGION}", credentials: "aws-key") {
-                         def changedServices = env.CHANGED_SERVICES.split(",")
+                         def changedServices = env.SERVICE_DIRS.split(",")
                          changedServices.each { service ->
                              // secret 파일이 필요한 경우만 credentials 호출
                              if (service == "config-service") {
