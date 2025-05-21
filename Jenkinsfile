@@ -78,9 +78,7 @@ pipeline {
         stage('Build changed Services') {
             // CHANGED_SERVICES가 빈 문자열이 아니라면 아래의 steps를 실행하겠다.
             // 이 스테이지는 빌드되어야 할 서비스가 존재할 때만 실행될 스테이지다!
-            when {
-                expression { env.CHANGED_SERVICES != "" }
-            }
+
             steps {
                 script {
                 // 환경 변수 불러오기
