@@ -102,13 +102,12 @@ pipeline {
             ////
 
          stage('Build Docker Image & Push to AWS ECR') {
-
+            when {
+            expression { env.CHANGED_SERVICES != "" }
+            }
             steps {
                 script {
 
-                when {
-                                expression { env.CHANGED_SERVICES != "" }
-                            }
                     // Jenkins에 저장된 credentials를 사용하여 AWS 자격증명을 설정.
                     withAWS(region: "${REGION}", credentials:"aws-key"){
                         def changedServices = env.CHANGED_SERVICES.split(",")
@@ -144,9 +143,7 @@ pipeline {
          /////
 
          stage('Deploy Changed Services to AWS EC2') {
-              when {
-               expression { env.CHANGED_SERVICES != "" }
-               }
+
                 steps {
                     sshagent(credentials: ["deploy-key"]) {
                         sh """
