@@ -98,7 +98,7 @@ pipeline {
             steps {
                 script {
                     // Jenkins에 저장된 credentials를 사용하여 AWS 자격증명을 설정.
-                    withAws(region: "${REGION}", credentials:"aws-key"){
+                    withAWS(region: "${REGION}", credentials:"aws-key"){
                         def changedServices = env.CHANGED_SERVICES.split(",")
                            changedServices.each {service ->
                            sh """
