@@ -1,6 +1,8 @@
 // 자주 사용되는 필요한 변수는 전역으로 선언하는 것도 가능
 // ECR credential helper 이름
 def ecrLoginHelper = "docker-credential-ecr-login"
+// 프라이빗 IPv4 주소
+def deployHost = "172.31.7.215"
 
 
 // 젠킨스 파일의 선언형 파이프라인 정의부 시작 (그루비 언어)
@@ -18,6 +20,9 @@ pipeline {
                 checkout scm // 젠킨스와 연결된 소스 컨트롤 매니저, (git 등)에서 코드를 가져오는 명령어
             }
         }
+
+        ////
+
         stage('Detect Changes') {
             steps {
                 script {
@@ -67,6 +72,9 @@ pipeline {
                 }
             }
         }
+
+        /////
+
         stage('Build changed Services') {
             // CHANGED_SERVICES가 빈 문자열이 아니라면 아래의 steps를 실행하겠다.
             // 이 스테이지는 빌드되어야 할 서비스가 존재할 때만 실행될 스테이지다!
@@ -91,13 +99,19 @@ pipeline {
             }
         }
 
+            ////
+
          stage('Build Docker Image & Push to AWS ECR') {
 
             steps {
                 script {
+
+                when {
+                                expression { env.CHANGED_SERVICES != "" }
+                            }
                     // Jenkins에 저장된 credentials를 사용하여 AWS 자격증명을 설정.
                     withAWS(region: "${REGION}", credentials:"aws-key"){
-                        def changedServices = env.SERVICE_DIRS.split(",")
+                        def changedServices = env.CHANGED_SERVICES.split(",")
                            changedServices.each {service ->
                            sh """
                            # ECR에 이미지를 push하기 위해 인증 정보를 대신 검증 해주는 도구 다운로드.
@@ -124,6 +138,38 @@ pipeline {
                     }
                 }
             }
+
          }
+
+         /////
+
+         stage('Deploy Changed Services to AWS EC2') {
+              when {
+               expression { env.CHANGED_SERVICES != "" }
+               }
+                steps {
+                    sshagent(credentials: ["deploy-key"]) {
+                        sh """
+                        # Jenkins에서 배포 서버로 docker-compose.yml을 복사 후 전송
+                        scp -o StrictHostKeyChecking=no docker-compose.yml ubuntu@${deployHost}:/home/ubuntu/docker-compose.yml
+
+                        # Jenkins에서 배포 서버로 직접 접속을 시도
+                        # docker-compose 실행하기 위해서
+                        ssh -o StrictHostKeyChecking=no ubuntu@${deployHost} '
+                        cd /home/ubuntu && \
+
+                        # 배포 서버에서 Jenkins로 로그인 (로그인 만료를 방지하기 위해서)
+                        aws ecr get-login-password --region ${REGION} | docker login --username AWS --password-stdin ${ECR_URL} && \
+
+                        # docker-compose를 통해서 변경된 서비스의 이미지만 pull -> 일괄 실행
+                        docker-compose pull ${env.CHANGED_SERVICES} && \
+                        docker compose up -d ${env.CHANGED_SERVICES} '
+                        """
+                    }
+                }
+            }
+
+            /////
+
         }
     }
