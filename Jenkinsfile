@@ -63,7 +63,7 @@ pipeline {
                     // 변경된 서비스 이름을 모아놓은 리스트를 다른 스테이지에서도
                     // 사용하기 위해 환경변수로 선언
                     // join() : 지정한 문자열을 구분자로 하여 리스트 요소를 하나의 문자열로 리턴, 중복 제거
-                    env.CHANGED_SERVICES = changedServices.join(",")
+                    env.CHANGED_SERVICES = env.SERVICE_DIRS.join(",")
                     if(env.CHANGED_SERVICES == "") {
                         echo "No changes Detected. Skipping Build Stage"
                         // 성공 상태로 파이프라인 종료
@@ -84,7 +84,7 @@ pipeline {
             steps {
                 script {
                 // 환경 변수 불러오기
-                    def changedServices = env.CHANGED_SERVICES.split(",")
+                    def changedServices = env.SERVICE_DIRS.split(",")
                     changedServices.each { service ->
                         sh """
                          echo "Building ${service}"
