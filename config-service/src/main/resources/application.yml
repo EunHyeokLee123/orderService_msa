@@ -1,6 +1,22 @@
-spring:
-  profiles:
-    active: dev
-
-
 # 서비스 변경 감지용 주석
+server:
+  port: 8888
+
+spring:
+  application:
+    name: config-service
+  cloud:
+    config:
+      server:
+        git:
+          uri: ${GITHUB_URL}
+          # file://C:\Users\user\Desktop\git-local-repo   로컬 깃 파일 접근 경로
+          default-label: main   # 깃허브의 브랜치 이름 설정
+          username: ${USERNAME}
+          password: ${TOKEN}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, refresh, beans
