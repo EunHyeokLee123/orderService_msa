@@ -104,18 +104,6 @@ services:
     networks:
       - msa-network
 
-  mysql-db: # 두번째 서비스 이름은 db야.
-    image: mysql:8 # 빌드하지 않고 미리 준비된 이미지를 사용하겠다.
-    ports:
-      - "3316:3306"
-    networks:
-      - msa-network
-    environment: # mysql 컨테이너에 적용할 환경 변수 설정
-      MYSQL_ROOT_PASSWORD: mysql # root 계정 비밀번호 세팅
-      MYSQL_DATABASE: orderservice # 컨테이너 시작할 때 dockerdb라는 이름의 데이터베이스 생성
-    volumes: # 볼륨: 컨테이너가 사용하는 데이터 저장소, 컨테이너가 삭제되거나 재시작하더라도 데이터가 보존.
-      - db-data:/var/lib/mysql
-
 # 서비스들이 연결될 Docker 네트워크를 정의할 수 있습니다.
 # 동일한 호스트 내에서 서로 통신할 수 있도록 해 주는 Docker의 네트워크 드라이버.
 networks:
