@@ -15,7 +15,7 @@ spring:
           "[/**]":
             allowed-origins:
               - "http://localhost:5173"
-              - "http://asjkkvcnkjnksandflksvd.s3-website.ap-northeast-2.amazonaws.com"
+              - "http://myorderservicebucket-0123123123123456.s3-website.ap-northeast-2.amazonaws.com/"
             allowed-methods:
               - GET
               - POST
