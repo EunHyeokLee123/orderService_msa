@@ -2,10 +2,10 @@ package com.playdata.userservice.user.service;
 
 
 import jakarta.mail.MessagingException;
+import jakarta.mail.internet.MimeMessage;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.mail.javamail.JavaMailSender;
-import org.springframework.mail.javamail.MimeMailMessage;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Component;
 
@@ -39,7 +39,7 @@ public class MailSenderService {
     private void mailSend(String setFrom, String toMail, String title, String content) throws MessagingException {
 
         // MimeMessage란 JavaMail 라이브러리에서 이메일 메시지를 나타내는 클래스. (생성, 설정, 수정, 전송 담당)
-        jakarta.mail.internet.MimeMessage message = mailSender.createMimeMessage();
+        MimeMessage message = mailSender.createMimeMessage();
 
         /*
             기타 설정들을 담당할 MimeMessageHelper 객체를 생성
@@ -59,7 +59,7 @@ public class MailSenderService {
 
     private int makeRandomNumber() {
         // 난수의 범위는 111111 ~ 999999
-        int checkNum = (int)(Math.random() * 999999) + 111111;
+        int checkNum = (int)((Math.random() * 999999) + 111111);
         log.info("인증번호는 ? : {}", checkNum);
         return checkNum;
     }

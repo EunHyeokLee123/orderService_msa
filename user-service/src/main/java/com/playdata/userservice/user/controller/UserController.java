@@ -219,6 +219,15 @@ public class UserController {
         return ResponseEntity.ok().body(authNum);
     }
 
+    // 인증 코드를 검증하는 로직
+    @PostMapping("/verify")
+    public ResponseEntity<?> verify(@RequestBody Map<String, String> map){
+        log.info("인증 코드 검증! map: {}", map);
+
+        Map<String, String> result = userService.verifyEmail(map);
+
+        return ResponseEntity.ok().body("Success");
+    }
 
     @GetMapping("/health-check")
     public String healthCheck(){

@@ -13,11 +13,14 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import java.time.Duration;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
@@ -35,6 +38,13 @@ public class UserService {
 
     // 비밀번호를 암호화해서 DB에 저장하기 위해서 사용하는 객체
     private final PasswordEncoder encoder;
+
+    private final RedisTemplate<String, Object> redisTemplate;
+
+    // Redis key 상수
+    private static final String VERIFICATION_CODE_KEY = "email_verify:code:";
+    private static final String VERIFICATION_ATTEMPT_KEY = "email_verify:attempt:";
+    private static final String VERIFICATION_BLOCK_KEY = "email_verify:block:";
 
     // controller가 이 메소드를 호출할 것임.
     // 전달받은 DTO를 매개변수로 넘길 것임.
@@ -122,7 +132,10 @@ public class UserService {
     }
 
     public String mailCheck(String email) {
-
+        // 차단 상태 확인
+        if(isBlocked(email)){
+            throw new IllegalArgumentException("blocked email");
+        }
         Optional<User> foundEmail =
                 userRepository.findByEmail(email);
         // 이미 존재하는 이메일인 경우 -> 회원가입 불가
@@ -139,6 +152,75 @@ public class UserService {
             throw new RuntimeException("이메일 전송 과정 중 문제 발생");
         }
 
+        // 인증 코드를 redis에 저장하자
+        String key = VERIFICATION_CODE_KEY + email;
+        redisTemplate.opsForValue().set(key, authNum, Duration.ofMinutes(1));
+
         return authNum;
+    }
+
+    public Map<String, String> verifyEmail(Map<String, String> map) {
+
+        String email = map.get("email");
+        String code = map.get("code");
+
+        // 차단 상태 확인
+        // 차단된 이메일인 경우
+        if(isBlocked(email)) {
+            throw new IllegalArgumentException("blocked email: " + email);
+        }
+
+        // redis에 저장된 인증 코드 조회
+        String key = VERIFICATION_CODE_KEY + email;
+        Object foundCode = redisTemplate.opsForValue().get(key);
+        // 인증 코드 유효시간이 만료된 경우
+        if(foundCode == null) {
+            throw new IllegalArgumentException("Authcode expired.");
+        }
+
+        // 인증 시도 횟수 증가
+        int attemptCount = incrementAttemptCount(email);
+
+        // 조회한 코드와 사용자가 입력한 코드가 일치한 지 검증
+        if(!foundCode.toString().equals(code)) {
+            // 인증 코드를 틀린 경우
+            if(attemptCount >= 3){
+                // 최대 시도 횟수 초과 시 해당 이메일 인증 차단
+                blockUser(email);
+                throw new IllegalArgumentException("email blocked.");
+            }
+            int remainingAttempt = 3 - attemptCount;
+            throw new IllegalArgumentException(String.format("authCode wrong!, %d", remainingAttempt));
+        }
+
+        log.info("이메일 인증 성공!, email: {}", email);
+
+        // 인증 완료 했기 때문에, redis에 있는 인증 관련 데이터를 삭제하자.
+        redisTemplate.delete(key);
+
+        return map;
+    }
+
+    private boolean isBlocked(String email) {
+        String key = VERIFICATION_BLOCK_KEY + email;
+        return redisTemplate.hasKey(key);
+    }
+
+    private void blockUser(String email) {
+
+        String key = VERIFICATION_BLOCK_KEY + email;
+        redisTemplate.opsForValue().set(key, "blocked", Duration.ofMinutes(30));
+
+    }
+
+    private int incrementAttemptCount(String email) {
+
+        String key = VERIFICATION_ATTEMPT_KEY + email;
+        Object obj = redisTemplate.opsForValue().get(key);
+
+        int count = (obj != null) ? Integer.parseInt(obj.toString()) + 1 : 1;
+        redisTemplate.opsForValue().set(key, String.valueOf(count), Duration.ofMinutes(1));
+
+        return count;
     }
 }
