@@ -69,6 +69,8 @@ public class ProductService {
 
     }
 
+
+
     public List<ProductResDTO> productList(ProductSearchDTO dto, Pageable pageable) {
         BooleanBuilder builder = new BooleanBuilder();
 

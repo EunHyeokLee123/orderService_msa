@@ -2,7 +2,7 @@
 // ECR credential helper 이름
 def ecrLoginHelper = "docker-credential-ecr-login"
 // 프라이빗 IPv4 주소
-def deployHost = "172.31.3.14"
+def deployHost = "172.31.7.215"
 
 
 // 젠킨스 파일의 선언형 파이프라인 정의부 시작 (그루비 언어)
