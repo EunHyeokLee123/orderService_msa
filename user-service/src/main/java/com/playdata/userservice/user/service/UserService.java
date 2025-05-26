@@ -7,6 +7,7 @@ import com.playdata.userservice.user.dto.UserResDto;
 import com.playdata.userservice.user.dto.UserSaveReqDTO;
 import com.playdata.userservice.user.entity.User;
 import com.playdata.userservice.user.repository.UserRepository;
+import jakarta.mail.MessagingException;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -29,6 +30,8 @@ public class UserService {
     // service는 repository에 의존하고 있음 -> repository의 기능을 써야 함.
     // repository 객체를 자동으로 주입받자. (JPA가 만들어서 컨테이너에 등록해 놓음.)
     private final UserRepository userRepository;
+
+    private final MailSenderService mailSenderService;
 
     // 비밀번호를 암호화해서 DB에 저장하기 위해서 사용하는 객체
     private final PasswordEncoder encoder;
@@ -116,5 +119,26 @@ public class UserService {
         log.info(user.toString());
 
         return user.fromEntity();
+    }
+
+    public String mailCheck(String email) {
+
+        Optional<User> foundEmail =
+                userRepository.findByEmail(email);
+        // 이미 존재하는 이메일인 경우 -> 회원가입 불가
+        if (foundEmail.isPresent()) {
+            // 이미 존재하는 이메일이라는 에러를 발생 -> controller가 이 에러를 처리
+            throw new IllegalArgumentException("이미 존재하는 이메일입니다.");
+        }
+
+        String authNum;
+        // 이메일 전송만을 담당하는 객체를 이용해서 이메일 로직 작성.
+        try {
+            authNum = mailSenderService.joinMail(email);
+        } catch (MessagingException e) {
+            throw new RuntimeException("이메일 전송 과정 중 문제 발생");
+        }
+
+        return authNum;
     }
 }

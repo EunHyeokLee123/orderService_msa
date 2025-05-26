@@ -208,6 +208,18 @@ public class UserController {
         return ResponseEntity.ok().body(resDTO);
     }
 
+
+    // 유효한 이메일인지 확인하는 로직
+    @PostMapping("/email-valid")
+    public ResponseEntity<?> emailValid(@RequestBody Map<String, String> map){
+        String email = map.get("email");
+        log.info("이메일 인증 요청! email: {}", email);
+        String authNum = userService.mailCheck(email);
+
+        return ResponseEntity.ok().body(authNum);
+    }
+
+
     @GetMapping("/health-check")
     public String healthCheck(){
         String msg = "It's working in user-service \n";

@@ -44,7 +44,8 @@ public class SecurityConfig {
                             "/user/refresh",
                             "/user/findByEmail",
                             "/user/health-check",
-                            "/actuator/**").permitAll()
+                            "/actuator/**",
+                            "/user/email-valid").permitAll()
                     .anyRequest().authenticated();
         });
 
