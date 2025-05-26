@@ -89,7 +89,7 @@ public class ProductController {
     @GetMapping("/{prodId}")
     public ResponseEntity<?> getProductById(@PathVariable Long prodId){
         log.info("prodId: {}", prodId);
-        ProductResDTO productResDTO = productService.prodFindById(prodId);
+        ProductResDTO productResDTO = productService.getProductInfo(prodId);
 
         CommonResDTO resDTO = new CommonResDTO(HttpStatus.OK,
                 "제품 찾음!", productResDTO);
