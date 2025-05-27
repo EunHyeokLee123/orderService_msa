@@ -2,6 +2,7 @@ package com.playdata.userservice.user.service;
 
 
 import com.playdata.userservice.common.auth.TokenUserInfo;
+import com.playdata.userservice.common.dto.KakaoUserDto;
 import com.playdata.userservice.user.dto.UserLoginReqDTO;
 import com.playdata.userservice.user.dto.UserResDto;
 import com.playdata.userservice.user.dto.UserSaveReqDTO;
@@ -12,7 +13,6 @@ import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.core.env.Environment;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -241,7 +241,7 @@ public class UserService {
 
 
     // 인가 코드로 kakao access 토큰 받기
-    public void getKakaoAccessToken(String code) {
+    public String getKakaoAccessToken(String code) {
 
         // 요청 URL
         String requestUri = "https://kauth.kakao.com/oauth/token";
@@ -277,6 +277,60 @@ public class UserService {
         Map<String, Object> responseJson = (Map<String, Object>) responseEntity.getBody();
 
         log.info("응답 JSON 데이터는 : {}", responseJson);
+
+        // Access Token 추출
+        String accessToken = responseJson.get("access_token").toString();
+
+        return accessToken;
+    }
+
+    // Access Token을 통해 카카오 서버에서 사용자 정보 가져오기
+    public KakaoUserDto getKakaoUserInfo(String accessToken) {
+
+        String requestUri = "https://kapi.kakao.com/v2/user/me";
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.add("Content-Type", "application/x-www-form-urlencoded;charset=utf-8");
+        headers.add("Authorization", "Bearer " + accessToken);
+
+        RestTemplate template = new RestTemplate();
+
+        ResponseEntity<String> entity = template.exchange(requestUri,
+                HttpMethod.POST, new HttpEntity<>(headers), String.class);
+
+        log.info(entity.getBody());
+
+        ResponseEntity<KakaoUserDto> responseEntity = template.exchange(requestUri,
+                HttpMethod.POST, new HttpEntity<>(headers), KakaoUserDto.class);
+
+        log.info(responseEntity.getBody().toString());
+
+        return responseEntity.getBody();
+    }
+
+    public UserResDto findOrCreateKakaoUser(KakaoUserDto dto) {
+        // 카카오 ID로 기존 사용자 찾기
+        Optional<User> existingUser =
+                userRepository.findBySocialProviderAndSocialId("KAKAO" ,dto.getId().toString());
+
+        if(existingUser.isPresent()) {
+            User foundUser = existingUser.get();
+            return foundUser.fromEntity();
+        }
+        else{  // 처음 카카오 로그인한 사람 -> 새 사용자로 생성을 해줘야 함.
+            User newUser = User.builder()
+                    .email(dto.getAccount().getEmail())
+                    .socialId(dto.getId().toString())
+                    .name(dto.getProperties().getNickName())
+                    .profileImage(dto.getProperties().getProfileImage())
+                    .socialProvider("KAKAO")
+                    // 소셜 로그인은 비밀번호 없음
+                    .password(null)
+                    .address(null)
+                    .build();
+            User saved = userRepository.save(newUser);
+            return saved.fromEntity();
+        }
 
     }
 }

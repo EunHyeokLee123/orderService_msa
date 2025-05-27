@@ -7,7 +7,11 @@ server:
 spring:
   application:
     name: ordering-service
-
+  rabbitmq:
+    host: localhost
+    port: 5672
+    username: admin
+    password: admin123
 
 #  서킷 브레이커 (Circuit Breaker)
 #  - 서비스 호출 실패율이 일정 기준을 넘을 때, 호출을 차단(Open)하여 추가적인 실패를 방지하는 패턴.

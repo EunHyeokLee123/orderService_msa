@@ -28,7 +28,7 @@ public class User {
     @Column(unique = true, nullable = false)
     private String email;
 
-    @Column(nullable = false)
+    @Column
     private String password;
 
     @Embedded // @Embeddable로 선언한 값을 대입시킴. (기본 생성자 필수!)
@@ -38,6 +38,15 @@ public class User {
     @Builder.Default // build 패턴 사용시 전달한 값으로 세팅하기 위한 어노테이션
     private Role role = Role.USER; // @Builder.Default이면 기본 초기값을 넣어줘야 함.
 
+    @Column
+    private String socialId;
+
+    @Column
+    private String profileImage;
+
+    // 로그인한 소셜 로그인 플랫폼이 어디인지
+    @Column
+    private String socialProvider;  // GOOGLE, KAKAO, NAVER, NULL
 
     // DTO에 Entity 변환 메소드가 있는 것처럼
     // Entity도 응답용 DTO 변환 메소드를 세팅해서 언제든 변환이 자유롭도록 작성.
@@ -48,6 +57,8 @@ public class User {
                 .email(this.email)
                 .address(this.address)
                 .role(this.role)
+                .profileImage(this.profileImage)
+                .socialProvider(this.socialProvider)
                 .build();
     }
 

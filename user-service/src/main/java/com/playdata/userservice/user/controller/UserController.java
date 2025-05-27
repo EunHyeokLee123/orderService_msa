@@ -3,11 +3,13 @@ package com.playdata.userservice.user.controller;
 import com.playdata.userservice.common.auth.JwtTokenProvider;
 import com.playdata.userservice.common.dto.CommonErrorDTO;
 import com.playdata.userservice.common.dto.CommonResDTO;
+import com.playdata.userservice.common.dto.KakaoUserDto;
 import com.playdata.userservice.user.dto.UserLoginReqDTO;
 import com.playdata.userservice.user.dto.UserResDto;
 import com.playdata.userservice.user.dto.UserSaveReqDTO;
 import com.playdata.userservice.user.entity.User;
 import com.playdata.userservice.user.service.UserService;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -19,6 +21,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -236,16 +239,72 @@ public class UserController {
         msg += "token.secret: " + env.getProperty("token.secret");
         msg += "aws.accessKey: " + env.getProperty("aws.accessKey");
         msg += "aws.secretKey: " + env.getProperty("aws.secretKey");
+        msg += "message: " + env.getProperty("message");
 
         return msg;
     }
 
     // 카카오 콜백 요청 처리
     @GetMapping("/kakao")
-    public void kakaoCallback(@RequestParam String code){
+    public void kakaoCallback(@RequestParam String code,
+                              // 응답을 평소처럼 주는게 아니라, 직접 커스텀해서 클라이언트에게 전달.
+                              HttpServletResponse response) throws IOException {
         log.info("카카오 콜백 처리 시작, code : {}", code);
 
-        userService.getKakaoAccessToken(code);
+        String accessToken = userService.getKakaoAccessToken(code);
+
+        KakaoUserDto dto = userService.getKakaoUserInfo(accessToken);
+
+        UserResDto resDto = userService.findOrCreateKakaoUser(dto);
+
+        // JWT 토큰 생성 (우리 사이트 로그인 유지를 위해)
+        String token =
+                jwtTokenProvider.createToken(resDto.getEmail(), resDto.getRole().toString());
+
+        String refreshToken =
+                jwtTokenProvider.createRefreshToken(resDto.getEmail(), resDto.getRole().toString());
+
+        // redis에 refreshToken 저장
+        redisTemplate.opsForValue().set(
+                // key
+                "user:refresh:"+resDto.getId(),
+                // value
+                refreshToken,
+                // 만료 시간
+                2,
+                // 시간의 단위, 초,분,시,일,주 등 다양함.
+                TimeUnit.MINUTES);
+
+        // 팝업 닫기 HTML 응답
+        String html = String.format("""
+                <!DOCTYPE html>
+                <html>
+                <head><title>카카오 로그인 완료</title></head>
+                <body>
+                    <script>
+                        if (window.opener) {
+                            window.opener.postMessage({
+                                type: 'OAUTH_SUCCESS',
+                                token: '%s',
+                                id: '%s',
+                                role: '%s',
+                                provider: 'KAKAO'
+                            }, 'http://localhost:5173');
+                            window.close();
+                        } else {
+                            window.location.href = 'http://localhost:5173';
+                        }
+                    </script>
+                    <p>카카오 로그인 처리 중...</p>
+                </body>
+                </html>
+                """, token, resDto.getId(), resDto.getRole().toString());
+
+        response.setContentType("text/html; charset=UTF-8");
+
+        response.getWriter().write(html);
+
+
     }
 
 }
