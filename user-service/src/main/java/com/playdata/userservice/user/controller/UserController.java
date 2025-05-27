@@ -240,4 +240,12 @@ public class UserController {
         return msg;
     }
 
+    // 카카오 콜백 요청 처리
+    @GetMapping("/kakao")
+    public void kakaoCallback(@RequestParam String code){
+        log.info("카카오 콜백 처리 시작, code : {}", code);
+
+        userService.getKakaoAccessToken(code);
+    }
+
 }
