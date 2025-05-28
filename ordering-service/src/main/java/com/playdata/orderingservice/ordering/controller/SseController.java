@@ -1,6 +1,7 @@
 package com.playdata.orderingservice.ordering.controller;
 
 import com.playdata.orderingservice.common.auth.TokenUserInfo;
+import com.playdata.orderingservice.ordering.entity.Ordering;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -8,6 +9,9 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.io.IOException;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
@@ -15,10 +19,16 @@ import java.util.concurrent.TimeUnit;
 @Slf4j
 public class SseController {
 
+    // 알림을 위한 연결을 생성할 때, 각 관리자의 이메일을 키로 해서 emitter 객체를 저장.
+    // ConcurrentHashMap: 멀티 스레드 기반 해시맵 (HashMap은 싱글 스레드 기반)
+    static Map<String, SseEmitter> emitters = new ConcurrentHashMap<>();
+
     @GetMapping("/subscribe")
-    public void subscribe(@AuthenticationPrincipal TokenUserInfo userInfo) {
+    public SseEmitter subscribe(@AuthenticationPrincipal TokenUserInfo userInfo) {
         SseEmitter emitter = new SseEmitter(24 * 60 * 60 * 1000L);
         log.info("Subscribing to {}", userInfo.getEmail());
+
+        emitters.put(userInfo.getEmail(), emitter);
 
         // 연결 성공 메시지 전송
         try {
@@ -51,6 +61,31 @@ public class SseController {
             e.printStackTrace();
             log.info("Fail to connect");
         }
+
+        return emitter;
+    }
+
+    public static void sendOrderMessage(Ordering savedOrdering) {
+
+        String userEmail = savedOrdering.getUserEmail();
+        Long id = savedOrdering.getId();
+
+        HashMap<Object, Object> map = new HashMap<>();
+        map.put("userEmail", userEmail);
+        map.put("id", id);
+
+        SseEmitter emitter = emitters.get("admin@admin.com");
+
+        try {
+            emitter
+                    .send(SseEmitter
+                            .event()
+                            .name("ordered")
+                            .data(map));
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
     }
 
 }
