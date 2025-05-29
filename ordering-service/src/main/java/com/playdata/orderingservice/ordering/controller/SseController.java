@@ -1,91 +1,143 @@
 package com.playdata.orderingservice.ordering.controller;
 
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.playdata.orderingservice.common.auth.TokenUserInfo;
-import com.playdata.orderingservice.ordering.entity.Ordering;
+import com.playdata.orderingservice.ordering.dto.OrderNotificationEvent;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
-import java.io.IOException;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
 
 @RestController
+@RequiredArgsConstructor
 @Slf4j
 public class SseController {
 
-    // 알림을 위한 연결을 생성할 때, 각 관리자의 이메일을 키로 해서 emitter 객체를 저장.
-    // ConcurrentHashMap: 멀티 스레드 기반 해시맵 (HashMap은 싱글 스레드 기반)
-    static Map<String, SseEmitter> emitters = new ConcurrentHashMap<>();
+    // 현재 인스턴스의 활성 연결들만 저장
+    /*
+
+    Ordering-service 인스턴스가 여러개 증가할 가능성이 있음
+    인스턴스1 -> 관리자 A, 관리자 B
+    인스턴스2 -> 관리자 C
+    인스턴스3 -> 관리자 D, 관리자 E
+
+    새 주문 -> RabbitMQ Queue -> 인스턴스 1, 2, 3은 동시에 동일한 메시지 수신
+    각 인스턴스는 자기와 연결된 관리자만 신경쓰면 됨 -> 관리자가 여러 명일 수 있으니 그들을 Map으로 관리하자!!!
+     */
+    private final ConcurrentHashMap<String, SseEmitter> activeConnections = new ConcurrentHashMap<>();
 
     @GetMapping("/subscribe")
     public SseEmitter subscribe(@AuthenticationPrincipal TokenUserInfo userInfo) {
-        SseEmitter emitter = new SseEmitter(24 * 60 * 60 * 1000L);
-        log.info("Subscribing to {}", userInfo.getEmail());
+        String userEmail = userInfo.getEmail();
 
-        emitters.put(userInfo.getEmail(), emitter);
+        // 매우 긴 타임아웃 설정 (5시간) - EventSourcePolyfill이 알아서 재연결함
+        SseEmitter emitter = new SseEmitter(0L); // 0을 주면, 타임아웃이 무한대임.
 
-        // 연결 성공 메시지 전송
+        log.info("SSE 구독 시작: {}", userEmail);
+
         try {
-            emitter.send(
-                    SseEmitter.event()
-                            .name("connect")
-                            .data("connected")
-            );
+            // 기존 연결이 있다면 정리
+            SseEmitter oldEmitter = activeConnections.put(userEmail, emitter);
+            if (oldEmitter != null) {
+                try {
+                    oldEmitter.complete();
+                } catch (Exception e) {
+                    // 무시
+                }
+            }
 
-            // 30초(임의의 시간)마다 heartbeat 메시지를 전송해서 연결 유지
-            // 클라이언트에서 사용하는 EventSourcePolyfill은 45초동안 활동이 없으면 자기맘대로 연결 종료
-            // 이를 방지하기 위해서, 45초보다 짧은 텀으로 message를 보내서 활동을 만듬.
-            Executors.newScheduledThreadPool(1)
-                    .scheduleAtFixedRate(() -> {
-                        // 일정하게 동작시킬 로직을 작성
-                        try {
-                            emitter.send(
-                                    SseEmitter.event()
-                                            .name("heartbeat")
-                                            // 클라이언트 단이 살아있는 지 확인하는 메시지
-                                            .data("keep-alive")
-                            );
-                        } catch (IOException e) {
-                            e.printStackTrace();
-                            log.info("Fail to send heartbeat");
-                        }
-                    }, 30, 30, TimeUnit.SECONDS);
+            // 연결 확인 메시지만 전송
+            emitter.send(SseEmitter.event()
+                    .name("connect")
+                    .data("SSE connected"));
 
-        } catch (IOException e) {
-            e.printStackTrace();
-            log.info("Fail to connect");
+            // 연결 종료 시 정리 - 매우 간단하게
+            emitter.onCompletion(() -> {
+                activeConnections.remove(userEmail);
+                log.info("SSE 연결 정상 종료: {}", userEmail);
+            });
+
+            emitter.onTimeout(() -> {
+                activeConnections.remove(userEmail);
+                log.info("SSE 연결 타임아웃: {}", userEmail);
+            });
+
+            emitter.onError((ex) -> {
+                activeConnections.remove(userEmail);
+                // Broken pipe는 DEBUG 레벨로
+                if (ex.getMessage() != null && ex.getMessage().contains("Broken pipe")) {
+                    log.debug("SSE 연결 끊김 (클라이언트 종료): {}", userEmail);
+                } else {
+                    log.info("SSE 연결 오류: {} - {}", userEmail, ex.getMessage());
+                }
+            });
+
+        } catch (Exception e) {
+            log.error("SSE 초기화 실패: {}", userEmail, e);
+            activeConnections.remove(userEmail);
         }
 
         return emitter;
     }
 
-    public static void sendOrderMessage(Ordering savedOrdering) {
+    /*
 
-        String userEmail = savedOrdering.getUserEmail();
-        Long id = savedOrdering.getId();
+    이전에는 emitter를 하나만 생성하고, Map이 없어서 따로 보관을 할 수 없었음.
+    그래서 큐에 메시지가 들어오면 수신하는 메소드를 직접 호출하는 방식을 쓸 수밖에 없어서 @RabbitListener를 사용하지 못했음.
+    지금은 우리가 emitter 객체를 Map에 저장해놓고 언제든 꺼내서 쓸 수 있기 때문에
+    @RabbitListener를 사용할 수 있음. -> admin.order.notifications 큐에 메세지 발신되면 자동 호출됨.
 
-        HashMap<Object, Object> map = new HashMap<>();
-        map.put("userEmail", userEmail);
-        map.put("id", id);
+    */
 
-        SseEmitter emitter = emitters.get("admin@admin.com");
+    @RabbitListener(queues = "admin.order.notifications")
+    public void handleOrderNotification(OrderNotificationEvent event) {
 
-        try {
-            emitter
-                    .send(SseEmitter
-                            .event()
-                            .name("ordered")
-                            .data(map));
-        } catch (IOException e) {
-            e.printStackTrace();
+        // json 문자열을 직접 DTO로 변환할 필요가 없고, 매개값으로 선언해서 받을 수 있음
+        // RabbitListener가 변환 해줌 -> Listener가 converter를 내장하고 있음.
+
+        // 활성화된 sse 연결이 없으면 즉시 종료
+        if (activeConnections.isEmpty()) {
+            return;
         }
 
-    }
+        try {
+            log.info("수신된 메시지 객체: {}", event);
 
+            log.info("새 주문 알림 - 활성 관리자: {}", activeConnections.size());
+
+            // 안전하게 메시지 전송
+            /*
+            entrySet(): Map에 있는 데이터를 Entry(사용자 email + emitter 객체) 타입으로 묶음
+
+            removeIf(): true를 반환하면 -> 해당 entry를 Map에서 제거
+                        false를 반환하면 -> 해당 entry를 Map에 유지
+
+            Map에 있는 Entry를 하나씩 순회하면서 연결된 모든 관리자에게 알림을 전송하는 로직 작성
+            */
+            activeConnections.entrySet().removeIf(entry -> {
+                try {
+                    entry.getValue().send(SseEmitter.event()
+                            .name("new-order")
+                            .data(event));
+                    return false; // 전송 성공
+                } catch (Exception e) {
+                    log.debug("알림 전송 실패 (연결 제거): {}", entry.getKey());
+                    try {
+                        entry.getValue().complete();
+                    } catch (Exception ignored) {}
+                    return true; // 전송 실패 - 제거
+                }
+            });
+
+        } catch (Exception e) {
+            log.error("주문 알림 처리 실패", e);
+        }
+    }
 }
