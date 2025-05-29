@@ -8,6 +8,7 @@ import com.playdata.orderingservice.ordering.dto.OrderNotificationEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -33,6 +34,8 @@ public class SseController {
      */
     private final ConcurrentHashMap<String, SseEmitter> activeConnections = new ConcurrentHashMap<>();
 
+    private final RabbitTemplate rabbitTemplate;
+
     @GetMapping("/subscribe")
     public SseEmitter subscribe(@AuthenticationPrincipal TokenUserInfo userInfo) {
         String userEmail = userInfo.getEmail();
@@ -57,6 +60,10 @@ public class SseController {
             emitter.send(SseEmitter.event()
                     .name("connect")
                     .data("SSE connected"));
+
+            // 로그인 시 대기중인 알림들 한번에 전송
+
+            sendPendingNotifications(emitter, userEmail);
 
             // 연결 종료 시 정리 - 매우 간단하게
             emitter.onCompletion(() -> {
@@ -87,6 +94,40 @@ public class SseController {
         return emitter;
     }
 
+    private void sendPendingNotifications(SseEmitter emitter, String userEmail) {
+
+        try {
+
+            int count = 0;
+            Object message;
+
+            while ( // pending Queue에서 메시지를 하나 가져왔을 때, 결과가 null이 아니라면 반복문 실행, null이면 반복문 종료
+                    (message = rabbitTemplate.receiveAndConvert("admin.pending.notifications")) != null) {
+
+                if (message instanceof OrderNotificationEvent) {
+                    emitter.send(SseEmitter.event()
+                            .name("pending-order")
+                            .data(message));
+                    count++;
+                }
+
+                if(count >= 100) break;
+            }
+
+            if(count > 0) {
+                log.info("관리자 {}, 대기중인 {}개 주문 발송함.", userEmail, count);
+            }
+            else {
+                log.info("대기중인 알림 없음!");
+            }
+
+        }
+        catch (Exception e) {
+            log.error("대기중인 알림 전송 실패: {}", e);
+        }
+
+    }
+
     /*
 
     이전에는 emitter를 하나만 생성하고, Map이 없어서 따로 보관을 할 수 없었음.
@@ -102,8 +143,10 @@ public class SseController {
         // json 문자열을 직접 DTO로 변환할 필요가 없고, 매개값으로 선언해서 받을 수 있음
         // RabbitListener가 변환 해줌 -> Listener가 converter를 내장하고 있음.
 
-        // 활성화된 sse 연결이 없으면 즉시 종료
+        // 활성화된 sse 연결이 없으면 즉시 종료 -> 관리자가 한 명도 접속을 하지 않고 있는 상태
         if (activeConnections.isEmpty()) {
+            rabbitTemplate.convertAndSend("admin.pending.notifications", event);
+            log.info("활성화된 관리자가 없음 - 대기 큐로 전송, 주문: {}", event.getOrderId());
             return;
         }
 
@@ -136,8 +179,22 @@ public class SseController {
                 }
             });
 
+            if (activeConnections.isEmpty()) {
+                rabbitTemplate.convertAndSend("admin.pending.notifications", event);
+                log.info("활성화된 관리자가 없음 - 대기 큐로 전송, 주문: {}", event.getOrderId());
+            }
+
+
         } catch (Exception e) {
             log.error("주문 알림 처리 실패", e);
         }
+
+        // 전송을 하고 나서도 체크 -> 처음 시작부에서는 문제가 없지만, 전송 과정에서 연결이 실패하는 경우에
+        // 대기 큐로 메시지를 보내기 위해서
+        if (activeConnections.isEmpty()) {
+            rabbitTemplate.convertAndSend("admin.pending.notifications", event);
+            log.info("활성화된 관리자가 없음 - 대기 큐로 전송, 주문: {}", event.getOrderId());
+        }
+
     }
 }

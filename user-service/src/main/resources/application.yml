@@ -7,9 +7,44 @@ server:
 spring:
   application:
     name: user-service
+  rabbitmq:
+    host: localhost
+    port: 5672
+    username: admin
+    password: admin123
+  mail:
+    host: smtp.gmail.com # SMTP 서버 호스트
+    port: 587 #SMTP 서버 포트
+    username: secun77@gmail.com
+    # password는 민감정보라서 Github에 올라가면 안됨
+    password:
+    properties:
+      mail:
+        smtp:
+          auth: true
+          timeout: 5000
+          starttls:
+            enable: true
+
+# 카카오 로그인용 민감 데이터
+oauth2:
+  kakao:
+    client_id: 7671af15e5aa70f49d27c9dc91d63eb4
+    redirect_uri: http://localhost:8000/user-service/user/kakao
+
 
   # /actuator/refresh를 호출하면 yml의 내용이 초기화되면서 새로 설정됩니다.
   # 그 과정에서 갱신 대상에 포함되지 않는 애들이 있는데, 걔네들을 명시적으로 refresh 대상에 포함시키라는 설정
+
+management:
+  endpoint:
+    health:
+      # health 요청을 보냈을 때, 좀더 detail한 정보를 볼 수 있음.
+      show-details: always
+  endpoints:
+    web:
+      exposure:
+        include: health, busrefresh, beans
 
 # log level setting
 

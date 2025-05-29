@@ -56,6 +56,16 @@ public class RabbitMQConfig {
                 .build();
     }
 
+    // 대기 알림용 큐 (알림 전송 대상 관리자가 없을 시 메시지 누적)
+    @Bean
+    public Queue pendingNotificationQueue() {
+
+        return QueueBuilder.durable("admin.pending.notifications")
+                .withArgument("x-message=ttl", 86400000)   // 1000 * 60 * 60 * 24
+                .build();
+
+    }
+
     @Bean
     public Binding adminNotificationBinding() {
 
@@ -81,8 +91,8 @@ public class RabbitMQConfig {
 
         return new Jackson2JsonMessageConverter();
     }
-
     // RabbitMQ를 사용하는 핵심 객체
+
     @Bean
     public RabbitTemplate rabbitTemplate(ConnectionFactory connectionFactory) {
 
@@ -105,6 +115,5 @@ public class RabbitMQConfig {
         factory.setMessageConverter(jsonMessageConverter());
         return factory;
     }
-
 
 }
