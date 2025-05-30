@@ -20,8 +20,7 @@ spring:
           "[/**]":
             allowed-origins:
               - "http://localhost:5173"
-              - "http://playdatashoporder123456789.store.s3-website.ap-northeast-2.amazonaws.com"
-              - "https://playdatashoporder123456789.store/"
+              - "https://playdatashoporder123456789.store"
             allowed-methods:
               - GET
               - POST
