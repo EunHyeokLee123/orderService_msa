@@ -20,7 +20,7 @@ spring:
           "[/**]":
             allowed-origins:
               - "http://localhost:5173"
-              - "http://myorderservicebucket-0123123123123456.s3-website.ap-northeast-2.amazonaws.com/"
+              - "http://playdatashoporder123456789.store.s3-website.ap-northeast-2.amazonaws.com"
               - "https://playdatashoporder123456789.store/"
             allowed-methods:
               - GET
