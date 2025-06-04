@@ -7,7 +7,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 
 // 호출하고자 하는 서비스의 Eureka 등록명을 작성하면 됨.
-@FeignClient(name = "user-service")
+@FeignClient(name = "user-service", url = "http://user-service.default.svc.cluster.local:8081")
 public interface UserServiceClient {
 
     // 인터페이스에는 요청 방식, 요청 url, 전달하고자 하는 데이터,

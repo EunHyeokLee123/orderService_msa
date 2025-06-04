@@ -3,6 +3,12 @@
 # k8s 리소스들을 동적으로 생성할 수 있음.
 # 나중에 생성할 템플릿 파일에 적용할 공통 값을 세팅하는 곳
 
-replicaCount: 2
-image: 891612549514.dkr.ecr.ap-northeast-2.amazonaws.com/user-service:latest
-port: 8081
+replicaCount: 1
+image: rabbitmq:3-management
+imagePullPolicy: IfNotPresent
+service:
+  messagingPort: 5672
+  uiPort: 15672
+env:
+  RABBITMQ_DEFAULT_USER: admin
+  RABBITMQ_DEFAULT_PASS: admin123

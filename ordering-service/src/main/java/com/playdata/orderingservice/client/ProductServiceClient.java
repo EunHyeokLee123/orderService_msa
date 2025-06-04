@@ -9,7 +9,7 @@ import java.util.Map;
 
 import java.util.List;
 
-@FeignClient(name = "product-service")
+@FeignClient(name = "product-service", url = "http://product-service.default.svc.cluster.local:8082")
 public interface ProductServiceClient {
 
     @GetMapping("/product/{prodId}")
